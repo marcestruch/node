@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+const CommentSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    content: {
+        type: String,
+        required: [true, 'El comentari no pot estar buit']
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
 const PostSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -26,11 +42,15 @@ const PostSchema = new mongoose.Schema({
         required: false,
         default: []
     },
+    comments: [CommentSchema],
     usuari: {
         type: String,
         required: true,
-        ref: 'User' // Opcional, però bona pràctica si volem popular més tard.
-        // Per ara guardarem l'email com demana l'exercici.
+        ref: 'User'
+    },
+    likes: {
+        type: Number,
+        default: 0
     },
     createdAt: {
         type: Date,

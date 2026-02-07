@@ -71,6 +71,23 @@ router.put('/:id', protect, async (req, res) => {
     }
 });
 
+// PUT /api/posts/:id/like - Dona m'agrada a un post
+router.put('/:id/like', async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ message: 'Post no trobat' });
+        }
+
+        post.likes = (post.likes || 0) + 1;
+        await post.save();
+
+        res.json({ message: 'Like afegit', likes: post.likes });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // DELETE /api/posts/:id - Elimina un post (Protegit)
 router.delete('/:id', protect, async (req, res) => {
     try {
@@ -81,6 +98,99 @@ router.delete('/:id', protect, async (req, res) => {
 
         await post.deleteOne();
         res.json({ message: 'Post eliminat correctament' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// --- Comentaris ---
+
+// POST /api/posts/:id/comments - Afegir comentari
+router.post('/:id/comments', protect, async (req, res) => {
+    const { content } = req.body;
+    if (!content) {
+        return res.status(400).json({ message: 'El contingut del comentari és obligatori' });
+    }
+
+    try {
+        const post = await Post.findById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ message: 'Post no trobat' });
+        }
+
+        const newComment = {
+            user: req.user._id,
+            content
+        };
+
+        post.comments.push(newComment);
+        await post.save();
+
+        res.status(201).json(post.comments[post.comments.length - 1]); // Retornem el comentari creat
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// DELETE /api/posts/:id/comments/:commentId - Eliminar comentari (Només autor o admin)
+router.delete('/:id/comments/:commentId', protect, async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+        if (!post) {
+            return res.status(404).json({ message: 'Post no trobat' });
+        }
+
+        const comment = post.comments.id(req.params.commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comentari no trobat' });
+        }
+
+        // Comprovar permisos: autor del comentari o admin
+        // req.user.role pot no estar populat si al middleware auth no hem agafat tot l'usuari o tots els camps
+        // Al middleware authMiddleware: "req.user = await User.findById(decoded.id).select('-password');"
+        // Això hauria de funcionar ja que hem afegit el camp 'role' al schema i mongo ens el retornarà.
+
+        if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(401).json({ message: 'No autoritzat' });
+        }
+
+        comment.deleteOne(); // Mètode de subdocument Mongoose
+        await post.save();
+
+        res.json({ message: 'Comentari eliminat' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// PUT /api/posts/:id/comments/:commentId - Modificar comentari
+router.put('/:id/comments/:commentId', protect, async (req, res) => {
+    const { content } = req.body;
+
+    try {
+        const post = await Post.findById(req.params.id);
+
+        if (!post) {
+            return res.status(404).json({ message: 'Post no trobat' });
+        }
+
+        const comment = post.comments.id(req.params.commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comentari no trobat' });
+        }
+
+        // Comprovar permisos
+        if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(401).json({ message: 'No autoritzat' });
+        }
+
+        if (content) {
+            comment.content = content;
+        }
+
+        await post.save();
+        res.json(comment);
+
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

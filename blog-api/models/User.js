@@ -15,6 +15,11 @@ const UserSchema = new mongoose.Schema({
         required: [true, 'La contrasenya és obligatòria'],
         minlength: [6, 'La contrasenya ha de tenir almenys 6 caràcters']
     },
+    role: {
+        type: String,
+        enum: ['editor', 'admin'],
+        default: 'editor'
+    },
     createdAt: {
         type: Date,
         default: Date.now
